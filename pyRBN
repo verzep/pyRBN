@@ -1,0 +1,141 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+
+
+class RBN:
+    def __init__(self
+                 ,N = 5
+                 ,K = 2
+                 ,p = .5
+                 ,randomInit = True
+                 ,sameK = True
+                 ):
+        """
+        Create a Random Boolean Network (RBN).
+        :param N: the number of nodes
+        :param K: the mean degree of the network
+        :param p: the bias of the evolution function
+        :param randomInit: if True, initialize the network in a random state.
+        :param sameK:  if True, all k's equal K. Otherwise, their expected value is K.
+        """
+
+        print(" Creating the network...")
+        self.N = N
+        self.K = np.zeros(N)
+
+        self.S = []
+        if randomInit:  #it doesn't really matters which initial condition you choose...
+            self.S.append(np.random.randint(0, 2, (N)))
+
+        self.p = p
+        self.neighbors = []  #array contain
+        self.RBF = []
+
+        if sameK and isinstance(K, int):
+            print('Same k for all nodes')
+            self.K = K*np.ones(N, dtype=int)
+        else:
+            print('different k')
+            self.K = np.random.binomial(self.N, K/self.N, self.N)
+
+
+
+        self.create_neighbors_list()
+        self.create_rbf_list()
+
+        print("Done!")
+
+
+    def create_neighbors(self,k):
+        """
+        select k random nodes to be the neighbors
+        :param k: the number of neighbors to be returned
+        :return: an array with the neighbors' indices
+        """
+        return np.random.choice(self.N, k, replace=False)
+
+    def create_neighbors_list(self):
+        """
+        Create the array with the neighbors of each node.
+        """
+        for i in range(self.N):
+            self.neighbors.append(self.create_neighbors(self.K[i]))
+
+
+    def create_rbf(self, k, p):
+        """
+        create a random boolean function (rbf) with k inputs as a look-up table with 2**k elements.
+
+        :param k: number of inputs of the rbf
+        :param p: the bias of the function (the probability of having 1)
+        :return: the rbf
+        """
+        return np.random.choice(2, 2**k, p = [1-p, p] )
+
+    def create_rbf_list(self):
+        """
+        Create the array with the rbf of each node.
+        """
+        for i in range(self.N):
+            self.RBF.append(self.create_rbf(self.K[i], self.p))
+
+
+    def bit_to_int(self, bit_array):
+        '''
+        Convert an array of bit into the corresponding int
+        :param the array to be converted
+        :return: the integer associated to that array.
+
+        for example bit_to_bit([1,0,1]) = 5.
+        '''
+        res = 0
+        for bit in bit_array:
+            res = res  * 2 + bit
+        return int(res)
+
+    def step(self, State):
+        """
+        Update a state into a new one.
+        :param the state to be update
+        :return: the new state
+        """
+
+        S_new = np.empty(self.N)
+
+        for i in range(self.N):
+            num = self.bit_to_int( State[self.neighbors[i]] ) #convert the neighbors into a int
+            S_new[i] = self.RBF[i][num] #change i-th state using the i-th rbf. num is the element of the look-up table.
+
+        return S_new
+
+    def evolve(self, T):
+
+        '''
+        Evolve the network from step 0 to step T-1.
+        :param T: number of steps.
+        '''
+
+        print("Evolving...")
+        for t in range(1,T):
+            new_state = self.step(self.S[-1])
+            self.S.append(new_state)
+
+        self.S = np.array(self.S)
+        print("Done")
+
+
+    def plot_states(self):
+
+        plt.imshow(self.S, cmap='binary')
+        plt.title('States evolution')
+        plt.show()
+
+
+
+net = RBN(1000, 5, p = .5)
+net.evolve(5000)
+net.plot_states()
+
+print(np.mean(net.S[-1] - net.S[-2]))
